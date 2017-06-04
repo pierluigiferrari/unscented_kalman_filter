@@ -51,6 +51,18 @@ UKF::UKF() {
   // Radar measurement noise standard deviation radius change in m/s
   std_radrd_ = 0.3;
 
+  // Define the measurement noise matrix for LIDAR
+  R_laser_ = MatrixXd(2,2);
+  R_laser_.fill(0.0);
+  R_laser_(0,0) = std_laspx_ * std_laspx_;
+  R_laser_(1,1) = std_laspy_ * std_laspy_;
+
+  // Define the measurement noise matrix for RADAR
+  R_radar_ = MatrixXd(3,3);
+  R_radar_ << std_radr_ * std_radr_, 0, 0,
+              0, std_radphi_ * std_radphi_, 0,
+              0, 0, std_radrd_ * std_radrd_;
+
   // State dimension
   n_x_ = 5;
 
@@ -92,9 +104,9 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
       const float rho = meas_package.raw_measurements_[0];
       const float phi = meas_package.raw_measurements_[1];
-      x_ << rho * cos(phi), rho * sin(phi), 5.0, 0.1, 0.1; // Convert polar coordinates to Cartesian coordinates, assume default bicycle velocity of 5 m/s = 18 km/h
+      x_ << rho * cos(phi), rho * sin(phi), 0.0, 0.0, 0.0; // Convert polar coordinates to Cartesian coordinates
     } else if (meas_package.sensor_type_ == MeasurementPackage::LASER) {
-      x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 5.0, 0.1, 0.1;
+      x_ << meas_package.raw_measurements_[0], meas_package.raw_measurements_[1], 0.0, 0.0, 0.0;
     }
     P_ = 0.5 * MatrixXd::Identity(5, 5); // Initialize P_ to a scaled identity matrix
     std::cout << "P right after initialization: " << std::endl;
@@ -173,21 +185,21 @@ void UKF::Prediction(double delta_t) {
   for(int i = 0; i < 2 * n_aug_ + 1; i++) {
 
     // Extract values for better readability
-    double p_x = Xsig_aug(0,i);
-    double p_y = Xsig_aug(1,i);
-    double v = Xsig_aug(2,i);
-    double yaw = Xsig_aug(3,i);
-    double yawd = Xsig_aug(4,i);
-    double nu_a = Xsig_aug(5,i);
-    double nu_yawdd = Xsig_aug(6,i);
+    const double p_x = Xsig_aug(0,i);
+    const double p_y = Xsig_aug(1,i);
+    const double v = Xsig_aug(2,i);
+    const double yaw = Xsig_aug(3,i);
+    const double yawd = Xsig_aug(4,i);
+    const double nu_a = Xsig_aug(5,i);
+    const double nu_yawdd = Xsig_aug(6,i);
 
     if(fabs(yawd) > 0.001) { // If yawd is non-zero
 
       // Compute a few values that we need more than once
-      double c1 = v / yawd;
-      double c2 = 0.5 * delta_t * delta_t;
-      double sin_yaw = sin(yaw);
-      double cos_yaw = cos(yaw);
+      const double c1 = v / yawd;
+      const double c2 = 0.5 * delta_t * delta_t;
+      const double sin_yaw = sin(yaw);
+      const double cos_yaw = cos(yaw);
 
       // Apply the CTRV process model to each sigma point
       Xsig_pred_(0,i) = p_x  + c1 * (sin(yaw + yawd * delta_t) - sin_yaw) + c2 * cos_yaw * nu_a;
@@ -198,9 +210,9 @@ void UKF::Prediction(double delta_t) {
 
     } else { // If yawd is zero
 
-      double c2 = 0.5 * delta_t * delta_t;
-      double sin_yaw = sin(yaw);
-      double cos_yaw = cos(yaw);
+      const double c2 = 0.5 * delta_t * delta_t;
+      const double sin_yaw = sin(yaw);
+      const double cos_yaw = cos(yaw);
 
       Xsig_pred_(0,i) = p_x  + v * cos_yaw * delta_t + c2 * cos_yaw * nu_a;
       Xsig_pred_(1,i) = p_y  + v * sin_yaw * delta_t + c2 * sin_yaw * nu_a;
@@ -236,11 +248,6 @@ void UKF::Prediction(double delta_t) {
     P_ = P_ + weights_(i) * x_diff * x_diff.transpose() ;
   }
 
-  std::cout << "x_ and P_ after the prediction step: " << std::endl;
-  std::cout << "x_: " << std::endl;
-  std::cout << x_ << std::endl;
-  std::cout << "P_: " << std::endl;
-  std::cout << P_ << std::endl;
 }
 
 /**
@@ -255,20 +262,14 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
        0, 1, 0, 0, 0;
 
   // Extract the measurement z
-  int n_z = 2; // A LASER measurement has only two Cartesian coordinates, p_x and py
+  const int n_z = 2; // A LASER measurement has only two Cartesian coordinates, p_x and p_y
   VectorXd z = VectorXd(n_z);
   z << meas_package.raw_measurements_(0), meas_package.raw_measurements_(1);
-
-  // Create the measurement noise matrix R
-  MatrixXd R_laser = MatrixXd(n_z, n_z);
-  R_laser.fill(0.0);
-  R_laser(0,0) = std_laspx_;
-  R_laser(1,1) = std_laspy_;
 
   // Compute y, S, and K
   VectorXd y = z - H * x_;
   MatrixXd PHt = P_ * H.transpose();
-  MatrixXd S = H * PHt + R_laser;
+  MatrixXd S = H * PHt + R_laser_;
   MatrixXd S_inv = S.inverse();
   MatrixXd K = PHt * S_inv;
 
@@ -277,7 +278,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   P_ -= K * H * P_; // This is more efficient than P = (I - K * H) * P
 
   // Compute the normalized innovation squared (NIS)
-  double nis = y.transpose() * S_inv * y;
+  const double nis = y.transpose() * S_inv * y;
   std::cout << "LIDAR NIS: " << nis << std::endl;
 }
 
@@ -291,7 +292,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    * 1. Transform the predicted sigma points into the measurement space
    *****************************************************************************/
 
-  int n_z = 3; // The RADAR space is 3-dimensional
+  const int n_z = 3; // The RADAR space is 3-dimensional
 
   // Create a matrix for the sigma points in the measurement space
   MatrixXd Zsig = MatrixXd::Zero(n_z, 2 * n_aug_ + 1);
@@ -299,14 +300,19 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   for (int i = 0; i < 2 * n_aug_ + 1; i++) {  // 2 * n_aug_ + 1 simga points
 
     // Extract values for better readibility
-    double p_x = Xsig_pred_(0,i);
-    double p_y = Xsig_pred_(1,i);
-    double v   = Xsig_pred_(2,i);
-    double yaw = Xsig_pred_(3,i);
+    const double p_x = Xsig_pred_(0,i);
+    const double p_y = Xsig_pred_(1,i);
+    const double v   = Xsig_pred_(2,i);
+    const double yaw = Xsig_pred_(3,i);
 
-    double v1 = cos(yaw) * v;
-    double v2 = sin(yaw) * v;
-    double c0 = sqrt(p_x * p_x + p_y * p_y);
+    const double v1 = cos(yaw) * v;
+    const double v2 = sin(yaw) * v;
+    const double c0 = sqrt(p_x * p_x + p_y * p_y);
+    // Protect against px and py both close to zero
+    if(c0 < 0.001) {
+      std::cout << "Warning: L2 norm of (px, py) is too close to zero. Skipping this measurement.";
+      return;
+    }
 
     // Apply the measurement model to each sigma point
     Zsig(0,i) = c0;                            // radius, r
@@ -340,11 +346,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   }
 
   // Add the measurement noise covariance matrix to S
-  MatrixXd R = MatrixXd(n_z,n_z);
-  R <<    std_radr_ * std_radr_, 0, 0,
-          0, std_radphi_ * std_radphi_, 0,
-          0, 0, std_radrd_ * std_radrd_;
-  S += R;
+  S += R_radar_;
 
   /*****************************************************************************
    * 3. Update x_ and P_
@@ -380,8 +382,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   // Extract the measurement z
   VectorXd z = VectorXd(n_z);
   z << meas_package.raw_measurements_(0), meas_package.raw_measurements_(1), meas_package.raw_measurements_(2);
-  std::cout << "z: " << std::endl;
-  std::cout << z << std::endl;
+
   // Compute the residual
   VectorXd z_diff = z - z_pred;
 
@@ -398,12 +399,6 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
    *****************************************************************************/
 
   double nis = z_diff.transpose() * S_inv * z_diff;
-
   std::cout << "RADAR NIS: " << nis << std::endl;
-  std::cout << "x_ and P_ after the update step: " << std::endl;
-  std::cout << "x_: " << std::endl;
-  std::cout << x_ << std::endl;
-  std::cout << "P_: " << std::endl;
-  std::cout << P_ << std::endl;
 
 }
