@@ -12,22 +12,22 @@ using std::vector;
  */
 UKF::UKF() {
 
-  // will be true once ProcessMeasurement has been called for the first time
+  // True after ProcessMeasurement() has been called for the first time
   is_initialized_ = false;
 
-  // if this is false, laser measurements will be ignored (except during init)
+  // If false, LASER measurements will be ignored (except during init)
   use_laser_ = true;
 
-  // if this is false, radar measurements will be ignored (except during init)
+  // If false, RADAR measurements will be ignored (except during init)
   use_radar_ = true;
 
-  // initial state vector
+  // Initial state vector
   x_ = VectorXd(5);
 
-  // initial covariance matrix
+  // Initial covariance matrix
   P_ = MatrixXd(5, 5);
 
-  // timestamp of the last measurement in microseconds
+  // Timestamp of the last measurement in microseconds
   time_us_ = 0;
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
@@ -85,8 +85,10 @@ UKF::UKF() {
 UKF::~UKF() {}
 
 /**
+ * Performs the Kalman filter process to update the estimated state of the object using the
+ * provided measurement data.
  * @param {MeasurementPackage} meas_package The latest measurement data of
- * either radar or laser.
+ * either RADAR or LASER.
  */
 void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
@@ -141,8 +143,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
 
 /**
  * Predicts sigma points, the state, and the state covariance matrix.
- * @param {double} delta_t the change in time (in seconds) between the last
- * measurement and this one.
+ * @param {double} delta_t The change in time (in seconds) between the last
+ * and current measurements.
  */
 void UKF::Prediction(double delta_t) {
 
@@ -251,7 +253,7 @@ void UKF::Prediction(double delta_t) {
 }
 
 /**
- * Updates the state and the state covariance matrix using a laser measurement.
+ * Updates the state and the state covariance matrix for a LASER measurement.
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateLidar(MeasurementPackage meas_package) {
@@ -283,7 +285,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
 }
 
 /**
- * Updates the state and the state covariance matrix using a radar measurement.
+ * Updates the state and the state covariance matrix for a RADAR measurement.
  * @param {MeasurementPackage} meas_package
  */
 void UKF::UpdateRadar(MeasurementPackage meas_package) {
@@ -355,7 +357,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   // Create a matrix for the cross correlation between Zsig and Xsig_pred, Tc
   MatrixXd Tc = MatrixXd::Zero(n_x_, n_z);
 
-  //calculate cross correlation matrix
+  // Calculate cross correlation matrix
   for (int i = 0; i < 2 * n_aug_ + 1; i++) {  // 2 * n_aug_ + 1 simga points
 
     // Compute the residual

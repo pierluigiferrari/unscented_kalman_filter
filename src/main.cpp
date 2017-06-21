@@ -7,7 +7,7 @@
 
 using namespace std;
 
-// for convenience
+// For convenience
 using json = nlohmann::json;
 
 // Checks if the SocketIO event has JSON data.
@@ -33,7 +33,7 @@ int main()
   // Create a Kalman Filter instance
   UKF ukf;
 
-  // used to compute the RMSE later
+  // Used to compute the RMSE later
   Tools tools;
   vector<VectorXd> estimations;
   vector<VectorXd> ground_truth;
@@ -62,7 +62,7 @@ int main()
           istringstream iss(sensor_measurment);
     	  long long timestamp;
 
-    	  // reads first element from the current line
+    	  // Reads first element from the current line
     	  string sensor_type;
     	  iss >> sensor_type;
 
@@ -105,7 +105,7 @@ int main()
     	  gt_values(3) = vy_gt;
     	  ground_truth.push_back(gt_values);
           
-          //Call ProcessMeasurment(meas_package) for Kalman filter
+        // Call ProcessMeasurment(meas_package) for Kalman filter
     	  ukf.ProcessMeasurement(meas_package);    	  
 
     	  //Push the current estimated x,y positon from the Kalman filter's state vector
@@ -160,7 +160,7 @@ int main()
     }
     else
     {
-      // i guess this should be done more gracefully?
+      // I guess this should be done more gracefully?
       res->end(nullptr, 0);
     }
   });
