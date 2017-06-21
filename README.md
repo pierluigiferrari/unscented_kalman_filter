@@ -26,7 +26,7 @@ The simulator provides the ground truth state of the object to be tracked and di
     cd uWebSockets
     git checkout e94b6e1
     ```
-    Some function signatures have changed in v0.14.x. See [this PR](https://github.com/udacity/CarND-MPC-Project/pull/3) for more details.
+    Some function signatures have changed in v0.14.x.
 * The simulator which you can download from [here](https://github.com/udacity/self-driving-car-sim/releases).
 
 ## Basic Build Instructions
